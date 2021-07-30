@@ -72,6 +72,7 @@ class Blockchain {
         block.hash = SHA256(JSON.stringify(block)).toString();
         self.chain.push(block);
         self.height++;
+        await this.validateChain();
         resolve(block);
       } catch (error) {
         reject(error);
@@ -124,6 +125,7 @@ class Blockchain {
         );
         if (currentTime - signedTime > 300) {
           reject("Time exceeded 5 minutes");
+          return;
         }
         bitcoinMessage.verify(message, address, signature);
         const blockData = {
@@ -208,7 +210,7 @@ class Blockchain {
     let self = this;
     let errorLog = [];
     return new Promise(async (resolve, reject) => {
-      const formerBlockHash = null;
+      let formerBlockHash = null;
       this.chain.forEach(async (block) => {
         const validated = await block.validate();
         if (!validated) {
@@ -216,13 +218,15 @@ class Blockchain {
             `The block with hash ${block.hash} has been tampered with`
           );
         }
+        
         if (formerBlockHash != block.previousBlockHash) {
           errorLog.push(
             `The block with hash ${block.hash} has a wrong previousBlockHash`
           );
         }
-        formerBlockHash = block.previousBlockHash;
+        formerBlockHash = block.hash;
       });
+      resolve(errorLog);
     });
   }
 }
